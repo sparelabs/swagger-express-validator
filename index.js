@@ -1,30 +1,31 @@
-const _ = require('lodash');
-const debug = require('debug')('swagger-express-validator');
-const Ajv = require('ajv');
-const util = require('util');
-const parseUrl = require('url').parse;
-const pathToRegexp = require('path-to-regexp');
-const valueValidator = require('validator');
+const _ = require("lodash");
+const debug = require("debug")("swagger-express-validator");
+const Ajv = require("ajv");
+const util = require("util");
+const parseUrl = require("url").parse;
+const pathToRegexp = require("path-to-regexp");
+const valueValidator = require("validator");
 
 let pathObjects = [];
 let options = {};
 let ajvRequestOptions;
 let ajvResponseOptions;
 
-const buildPathObjects = paths => _.map(paths, (pathDef, path) => ({
-  definition: _.get(options.schema, ['paths', path]),
-  original: ['paths', path],
-  regexp: pathToRegexp(path.replace(/\{/g, ':').replace(/\}/g, '')),
-  path,
-  pathDef,
-}));
+const buildPathObjects = (paths) =>
+  _.map(paths, (pathDef, path) => ({
+    definition: _.get(options.schema, ["paths", path]),
+    original: ["paths", path],
+    regexp: pathToRegexp(path.replace(/\{/g, ":").replace(/\}/g, "")),
+    path,
+    pathDef,
+  }));
 
 const matchUrlWithSchema = (reqUrl) => {
   let url = parseUrl(reqUrl).pathname;
   if (options.schema.basePath) {
-    url = url.replace(options.schema.basePath, '');
+    url = url.replace(options.schema.basePath, "");
   }
-  const pathObj = pathObjects.filter(obj => url.match(obj.regexp));
+  const pathObj = pathObjects.filter((obj) => url.match(obj.regexp));
   let match = null;
   if (pathObj[0]) {
     match = pathObj[0].definition;
@@ -35,12 +36,9 @@ const matchUrlWithSchema = (reqUrl) => {
 const decorateWithNullable = (schema) => {
   if (schema && schema.properties) {
     Object.keys(schema.properties).forEach((prop) => {
-      if (schema.properties[prop]['x-nullable']) {
+      if (schema.properties[prop]["x-nullable"]) {
         schema.properties[prop] = {
-          oneOf: [
-            schema.properties[prop],
-            { type: 'null' },
-          ],
+          oneOf: [schema.properties[prop], { type: "null" }],
         };
       }
     });
@@ -51,7 +49,11 @@ const decorateWithNullable = (schema) => {
 };
 
 const decorateWithDefinitions = (schema) => {
-  schema.definitions = _.assign({}, options.schema.definitions || {}, schema.definitions || {});
+  schema.definitions = _.assign(
+    {},
+    options.schema.definitions || {},
+    schema.definitions || {}
+  );
   return schema;
 };
 
@@ -90,7 +92,7 @@ const resolveRequestModelSchema = (req) => {
       requestSchemas = pathObj[method].parameters;
     }
     if (requestSchemas && requestSchemas.length > 0) {
-      const bodyParam = _.find(requestSchemas, { in: 'body' });
+      const bodyParam = _.find(requestSchemas, { in: "body" });
       schema = bodyParam && bodyParam.schema;
     }
   }
@@ -112,18 +114,20 @@ const sendData = (res, data, encoding) => {
 };
 
 const validateResponse = (req, res, next) => {
-  const ajv = new Ajv(Object.assign(
-    {},
-    {
-      allErrors: true,
-      formats: {
-        int32: valueValidator.isInt,
-        int64: valueValidator.isInt,
-        url: valueValidator.isURL,
+  const ajv = new Ajv(
+    Object.assign(
+      {},
+      {
+        allErrors: true,
+        formats: {
+          int32: valueValidator.isInt,
+          int64: valueValidator.isInt,
+          url: valueValidator.isURL,
+        },
       },
-    },
-    ajvResponseOptions
-  ));
+      ajvResponseOptions
+    )
+  );
 
   const origEnd = res.end;
   const writtenData = [];
@@ -131,7 +135,7 @@ const validateResponse = (req, res, next) => {
 
   // eslint-disable-next-line
   res.write = function (data) {
-    if (typeof data !== 'undefined') {
+    if (typeof data !== "undefined") {
       writtenData.push(data);
     }
   };
@@ -143,7 +147,7 @@ const validateResponse = (req, res, next) => {
 
     const responseSchema = resolveResponseModelSchema(req, res);
     if (!responseSchema) {
-      debug('Response validation skipped: no matching response schema');
+      debug("Response validation skipped: no matching response schema");
       sendData(res, data, encoding);
     } else {
       let val;
@@ -175,10 +179,10 @@ const validateResponse = (req, res, next) => {
           val = JSON.parse(val);
         } catch (err) {
           if (!options.preserveResponseContentType) {
-            res.set('Content-Type', ''); // Reset content-type since it is no longer valid
+            res.set("Content-Type", ""); // Reset content-type since it is no longer valid
           }
           err.failedValidation = true;
-          err.message = 'Value expected to be an array/object but is not';
+          err.message = "Value expected to be an array/object but is not";
           if (options.responseValidationFn) {
             options.responseValidationFn(req, data, [err]);
             sendData(res, data, encoding);
@@ -188,7 +192,7 @@ const validateResponse = (req, res, next) => {
             message: `Response schema validation failed for ${req.method}${req.originalUrl}`,
           };
           if (options.returnResponseErrors) {
-            err.errors = [{ message: 'Invalid response format' }];
+            err.errors = [{ message: "Invalid response format" }];
           }
           next(resultError);
           return;
@@ -200,7 +204,9 @@ const validateResponse = (req, res, next) => {
       const validator = ajv.compile(responseSchema);
       const validation = validator(val);
       if (!validation) {
-        debug(`  Response validation errors: \n${util.inspect(validator.errors)}`);
+        debug(
+          `  Response validation errors: \n${util.inspect(validator.errors)}`
+        );
         if (options.responseValidationFn) {
           options.responseValidationFn(req, val, validator.errors);
           sendData(res, val, encoding);
@@ -214,7 +220,7 @@ const validateResponse = (req, res, next) => {
           next(err);
         }
       } else {
-        debug('Response validation success');
+        debug("Response validation success");
         sendData(res, val, encoding);
       }
     }
@@ -224,26 +230,32 @@ const validateResponse = (req, res, next) => {
 };
 
 const validateRequest = (req, res, next) => {
-  const ajv = new Ajv(Object.assign(
-    {},
-    {
-      allErrors: true,
-      formats: {
-        int32: valueValidator.isInt,
-        int64: valueValidator.isInt,
-        url: valueValidator.isURL,
+  const ajv = new Ajv(
+    Object.assign(
+      {},
+      {
+        allErrors: true,
+        formats: {
+          int32: valueValidator.isInt,
+          int64: valueValidator.isInt,
+          url: valueValidator.isURL,
+        },
       },
-    }, ajvRequestOptions
-  ));
+      ajvRequestOptions
+    )
+  );
 
   const requestSchema = resolveRequestModelSchema(req);
 
   if (!requestSchema) {
-    debug('Request validation skipped: no matching request schema');
+    debug("Request validation skipped: no matching request schema");
     if (options.validateResponse) {
       validateResponse(req, res, next);
     } else {
-      next();
+      // Throw an error if the URL was not found the OAS specification. This enforces that un-validated paths can't sneak into the spec
+      next(
+        new Error("swagger-express-validator failed to match URL from schema")
+      );
     }
   } else {
     req.body = _.cloneDeep(req.body);
@@ -266,7 +278,7 @@ const validateRequest = (req, res, next) => {
         res.json(err);
       }
     } else {
-      debug('Request validation success');
+      debug("Request validation success");
       if (options.validateResponse) {
         validateResponse(req, res, next);
       } else {
@@ -304,7 +316,7 @@ const validate = (req, res, next) => {
  * @returns {function(*=, *=, *=)}
  */
 const init = (opts = {}) => {
-  debug('Initializing swagger-express-validator middleware');
+  debug("Initializing swagger-express-validator middleware");
   options = _.defaults({}, opts, {
     preserveResponseContentType: true,
     returnResponseErrors: false,
@@ -319,7 +331,7 @@ const init = (opts = {}) => {
   if (options.schema) {
     pathObjects = buildPathObjects(options.schema.paths);
   } else {
-    debug('Please provide schema option to properly initialize middleware');
+    debug("Please provide schema option to properly initialize middleware");
     pathObjects = [];
   }
   ({ ajvRequestOptions, ajvResponseOptions } = opts);
