@@ -51,6 +51,7 @@ const opts = {
   responseValidationFn: (req, data, errors) => {
     console.log(`failed response validation: ${req.method} ${req.originalUrl}\n ${util.inspect(errors)}`)
   },
+  missingPathFn: (req, res) => { ... }
 };
 server.use(validator(opts));
 
@@ -85,7 +86,7 @@ server.use(validator({
   },
   ajvResponseOptions: {
     coerceTypes: true,
-  },
+  }
 }));
 ```
 

@@ -252,10 +252,11 @@ const validateRequest = (req, res, next) => {
     if (options.validateResponse) {
       validateResponse(req, res, next);
     } else {
-      // Throw an error if the URL was not found the OAS specification. This enforces that un-validated paths can't sneak into the spec
-      next(
-        new Error("swagger-express-validator failed to match URL from schema")
-      );
+      if (options.missingPathFn) {
+        options.missingPathFn(req, res);
+      } else {
+        next();
+      }
     }
   } else {
     req.body = _.cloneDeep(req.body);
