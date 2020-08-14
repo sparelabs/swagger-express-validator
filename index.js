@@ -252,11 +252,7 @@ const validateRequest = (req, res, next) => {
     if (options.validateResponse) {
       validateResponse(req, res, next);
     } else {
-      if (options.missingPathFn) {
-        options.missingPathFn(req, res);
-      } else {
-        next();
-      }
+      next();
     }
   } else {
     req.body = _.cloneDeep(req.body);
@@ -292,8 +288,13 @@ const validateRequest = (req, res, next) => {
 const validate = (req, res, next) => {
   debug(`Processing: ${req.method} ${req.originalUrl}`);
 
-  if (pathObjects.length === 0) {
-    next();
+  const pathObj = matchUrlWithSchema(req.originalUrl);
+  if (!pathObj) {
+    if (options.missingPathFn) {
+      options.missingPathFn(req, res, next);
+    } else {
+      next();
+    }
   } else if (options.validateRequest) {
     validateRequest(req, res, next);
   } else if (options.validateResponse) {

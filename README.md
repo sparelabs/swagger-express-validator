@@ -51,7 +51,7 @@ const opts = {
   responseValidationFn: (req, data, errors) => {
     console.log(`failed response validation: ${req.method} ${req.originalUrl}\n ${util.inspect(errors)}`)
   },
-  missingPathFn: (req, res) => { ... }
+  missingPathFn: (req, res, next) => { ... }
 };
 server.use(validator(opts));
 
